@@ -163,6 +163,14 @@ bool FrontEndFlow::UpdateGNSSOdometry() {
 }
 
 bool FrontEndFlow::UpdateLaserOdometry() {
+    /*
+    数据中提供的速度是IMU所处位置的速度，而我们要的是激光雷达所处位置的速度，
+    由于这两者并不重合，即存在杆臂，所以在车旋转时他们的速度并不一致，需要按照这两者之间的相对坐标，
+    把速度转到雷达对应的位置上去，这个功能我们放在了sensor_data的velocity_data.cpp，
+    把它作为VelocityData类的成员函数，只要给他一个相对坐标，它就自动把类内部成员变量转换了，
+    调用时就一行程序：
+    current_velocity_data_.TransformCoordinate(lidar_to_imu_);
+    */
     current_velocity_data_.TransformCoordinate(lidar_to_imu_);
     distortion_adjust_ptr_->SetMotionInfo(0.1, current_velocity_data_);
     distortion_adjust_ptr_->AdjustCloud(current_cloud_data_.cloud_ptr, current_cloud_data_.cloud_ptr);

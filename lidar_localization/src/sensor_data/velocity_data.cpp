@@ -61,6 +61,17 @@ void VelocityData::TransformCoordinate(Eigen::Matrix4f transform_matrix) {
 
     Eigen::Vector3d r(matrix(0,3), matrix(1,3), matrix(2,3));
     Eigen::Vector3d delta_v;
+    /*
+    当刚体进行旋转运动时，质点在旋转参考系中的线速度不仅仅包括其相对旋转参考系的运动（v_rel） ，还包括由于旋转本身引起的速度。
+    总的线速度可以表示为：v = v_rel + ω × r，其中ω是角速度向量，r是质点的位置向量。
+
+    ω × r（w叉乘r）用于计算由于旋转引起的速度变化  其中ω是角速度向量，r是质点的位置向量。
+    那么，叉乘的具体计算是怎么样的呢？对于向量a = (a1, a2, a3)和向量b = (b1, b2, b3)，它们的叉乘a × b的结果是：
+
+    (a × b)_0 = a2 * b3 - a3 * b2
+    (a × b)_1 = a3 * b1 - a1 * b3
+    (a × b)_2 = a1 * b2 - a2 * b1
+    */
     delta_v(0) = w(1) * r(2) - w(2) * r(1);
     delta_v(1) = w(2) * r(0) - w(0) * r(2);
     delta_v(2) = w(1) * r(1) - w(1) * r(0);
