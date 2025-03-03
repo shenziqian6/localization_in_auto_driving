@@ -173,6 +173,7 @@ bool FrontEndFlow::UpdateLaserOdometry() {
     */
     current_velocity_data_.TransformCoordinate(lidar_to_imu_);
     distortion_adjust_ptr_->SetMotionInfo(0.1, current_velocity_data_);
+    //畸变矫正完成
     distortion_adjust_ptr_->AdjustCloud(current_cloud_data_.cloud_ptr, current_cloud_data_.cloud_ptr);
 
     static bool front_end_pose_inited = false;
@@ -190,7 +191,7 @@ bool FrontEndFlow::PublishData() {
     gnss_pub_ptr_->Publish(gnss_odometry_);
     laser_odom_pub_ptr_->Publish(laser_odometry_);
 
-    front_end_ptr_->GetCurrentScan(current_scan_ptr_);
+    front_end_ptr_->GetCurrentScan(current_scan_ptr_);  //这一步是对current_scan_ptr_过滤一下
     cloud_pub_ptr_->Publish(current_scan_ptr_);
 
     if (front_end_ptr_->GetNewLocalMap(local_map_ptr_))
