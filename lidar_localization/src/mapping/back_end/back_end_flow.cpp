@@ -94,8 +94,19 @@ bool BackEndFlow::UpdateBackEnd() {
 
     if (!odometry_inited) {
         odometry_inited = true;
+        //用GNSS的位姿来初始化激光里程计的第一帧位姿
+        //current_gnss_pose_data_.pose  是由topic:"/synced_gnss"订阅而来
+        //在data_pretreat_flow.cpp中进行publish这个topic:"/synced_gnss"
+        //current_gnss_pose_data_=Tw1_lidar  这个w1是真实的世界坐标
+
+        //current_laser_odom_data_.pose 是由topic:"/laser_odom"订阅而来
+        //Tw2_lidar  这个w2是默认开始的位置是世界坐标起点，
+
+        //Tw1_w2=Tw1_lidar*Tlidar_w2;
         odom_init_pose = current_gnss_pose_data_.pose * current_laser_odom_data_.pose.inverse();
     }
+    //不断更新里程计位姿信息
+    //Tw1_lidar=Tw1_w2*Tw2_lidar;g
     current_laser_odom_data_.pose = odom_init_pose * current_laser_odom_data_.pose;
 
     return back_end_ptr_->Update(current_cloud_data_, current_laser_odom_data_, current_gnss_pose_data_);
