@@ -23,6 +23,13 @@ G2oGraphOptimizer::G2oGraphOptimizer(const std::string &solver_type) {
     robust_kernel_factory_ = g2o::RobustKernelFactory::instance();
 }
 
+/*
+    在g2o中，节点和边的内存管理是自动处理的，你无需手动释放。当你通过addVertex和addEdge添加节点和边时，
+    g2o的内部机制会负责它们的生命周期。这些对象通常会在它们的父容器（如g2o::SparseOptimizer）析构时被释放，
+    因此不需要手动删除以避免内存泄漏。确保使用智能指针或依赖于g2o的内存管理功能，以便在优化器重置或析构时正确释放内存。
+*/
+
+
 bool G2oGraphOptimizer::Optimize() {
     static int optimize_cnt = 0;
     if(graph_ptr_->edges().size() < 1) {
@@ -85,7 +92,7 @@ void G2oGraphOptimizer::AddSe3Edge(int vertex_index1,
                                       int vertex_index2,
                                       const Eigen::Isometry3d &relative_pose,
                                       const Eigen::VectorXd noise) {
-    Eigen::MatrixXd information_matrix = CalculateSe3EdgeInformationMatrix(noise);
+    Eigen::MatrixXd information_matrix = CalculateSe3EdgeInformationMatrix(noise);    //Eigen::MatrixXd 是 Eigen 库中表示任意大小的、元素类型为双精度浮点数 (double) 的矩阵 的类型。x是Dynamic的缩写
     g2o::VertexSE3* v1 = dynamic_cast<g2o::VertexSE3*>(graph_ptr_->vertex(vertex_index1));
     g2o::VertexSE3* v2 = dynamic_cast<g2o::VertexSE3*>(graph_ptr_->vertex(vertex_index2));
     g2o::EdgeSE3 *edge(new g2o::EdgeSE3());

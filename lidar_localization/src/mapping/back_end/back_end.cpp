@@ -162,7 +162,7 @@ bool BackEnd::MaybeNewKeyFrame(const CloudData& cloud_data, const PoseData& lase
 }
 
 bool BackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
-    Eigen::Isometry3d isometry;
+    Eigen::Isometry3d isometry;   //是一种表示3D空间中物体位置和方向的有效方法，并且保证了变换是刚性的。
     // 添加关键帧节点
     isometry.matrix() = current_key_frame_.pose.cast<double>();
     graph_optimizer_ptr_->AddSe3Node(isometry, false);
