@@ -54,7 +54,7 @@ bool NDTRegistration::SetInputTarget(const CloudData::CLOUD_PTR& input_target) {
     return true;
 }
 //旋转和平移后的点与目标点集中的点在同一坐标系下
-//predict_pose这里是Tw1_lidar    input_source是lidar坐标系的点云   这里是将input_source转换到input_target同一个坐标系，然后进行ndt匹配
+//predict_pose这里是Tw1_lidar    input_source是lidar坐标系的点云   这里是将input_source转换到input_target同一个坐标系，然后进行ndt匹配  因为检测到回环，所以input_source和input_target这两个点云应该相距不远，只需要将这两个点云切换到同一个坐标系
 bool NDTRegistration::ScanMatch(const CloudData::CLOUD_PTR& input_source, 
                                 const Eigen::Matrix4f& predict_pose, 
                                 CloudData::CLOUD_PTR& result_cloud_ptr,
