@@ -74,6 +74,7 @@ bool LoopClosingFlow::ValidData() {
 
 bool LoopClosingFlow::PublishData() {
     if (loop_closing_ptr_->HasNewLoopPose()) 
+    //loop_closing_ptr_->GetCurrentLoopPose()这个获取到的就是Tlast_curr   当前帧到历史的回环帧变换
         loop_pose_pub_ptr_->Publish(loop_closing_ptr_->GetCurrentLoopPose());
 
     return true;

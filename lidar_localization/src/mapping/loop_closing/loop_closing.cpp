@@ -94,6 +94,7 @@ bool LoopClosing::Update(const KeyFrame key_frame, const KeyFrame key_gnss) {
     all_key_gnss_.push_back(key_gnss);
 
     int key_frame_index = 0;
+    //找到距离最近的关键帧
     if (!DetectNearestKeyFrame(key_frame_index))
         return false;
 
@@ -106,6 +107,14 @@ bool LoopClosing::Update(const KeyFrame key_frame, const KeyFrame key_gnss) {
 
 bool LoopClosing::DetectNearestKeyFrame(int& key_frame_index) {
     static int skip_cnt = 0;
+    /*
+    2）为避免频繁检测，每检测一次，就做一次等待
+
+       这个等待的帧数，也可以通过配置文件设置，对应的参数为loop_step，即每隔loop_step个关键帧检测一次。
+       loop_step: 5 # 防止检测过于频繁，每隔loop_step个关键帧检测一次闭环
+        detect_area: 10.0 # 检测区域，只有两帧距离小于这个值，才做闭环匹配
+        diff_num: 100 # 过于小的闭环没有意义，所以只有两帧之间的关键帧个数超出这个值再做检测
+    */
     static int skip_num = loop_step_;
     if (++skip_cnt < skip_num)
         return false;
@@ -122,6 +131,13 @@ bool LoopClosing::DetectNearestKeyFrame(int& key_frame_index) {
 
     key_frame_index = -1;
     for (int i = 0; i < key_num - 1; ++i) {
+    /*
+        1）设置最小时间差
+
+        这里的时间差，严格来讲是关键帧路程差，关键帧的编号是随着车的前进顺序递增产生的，
+        我们设置一个参数diff_num，假如当前帧编号为index，那么寻找匹配的帧应该从编号index-diff_num之前的帧中去查找。
+        diff_num这个值可以通过配置文件设置。
+    */
         if (key_num - i < diff_num_)
             break;
         
@@ -134,12 +150,25 @@ bool LoopClosing::DetectNearestKeyFrame(int& key_frame_index) {
             key_frame_index = i;
         }
     }
-    if (key_frame_index < extend_frame_num_)
+    /*
+    # 匹配时为了精度更高，应该选用scan-to-map的方式
+    # map是以历史帧为中心，往前后时刻各选取extend_frame_num个关键帧，放在一起拼接成的
+    extend_frame_num: 5 
+    */
+    if (key_frame_index < extend_frame_num_)  //这表示在开头，抛弃掉
         return false;
 
     skip_cnt = 0;
     skip_num = (int)min_distance;
+    //detect_area: 10.0 # 检测区域，只有两帧距离小于这个值，才做闭环匹配
     if (min_distance > detect_area_) {
+        /*
+        为了解决如果明知道某一段距离内不会有符合条件的历史帧，那么检测就不必要
+        3）根据当前最小距离计算重新计算等待时间
+        假如本次检测，当前帧和满足条件1）的历史帧中的最短距离是100米，
+        而我们需要的是两米范围内的关键帧，那么我们有理由认为在接下来的至少98米路程内，
+        是不会有满足条件的历史帧的，那么这段距离内就没必要检测了。
+        */
         skip_num = std::max((int)(min_distance / 2.0), loop_step_);
         return false;
     } else {
@@ -152,18 +181,20 @@ bool LoopClosing::CloudRegistration(int key_frame_index) {
     // 生成地图
     CloudData::CLOUD_PTR map_cloud_ptr(new CloudData::CLOUD());
     Eigen::Matrix4f map_pose = Eigen::Matrix4f::Identity();
+    //这里获取到检测到回环的那个关键帧map_pose  和关键帧对应的雷达点云map_cloud_ptr
     JointMap(key_frame_index, map_cloud_ptr, map_pose);
 
     // 生成当前scan
     CloudData::CLOUD_PTR scan_cloud_ptr(new CloudData::CLOUD());
     Eigen::Matrix4f scan_pose = Eigen::Matrix4f::Identity();
+    //获取到当前帧的雷达点云scan_cloud_ptr，和当前关键帧scan_pose
     JointScan(scan_cloud_ptr, scan_pose);
 
     // 匹配
     Eigen::Matrix4f result_pose = Eigen::Matrix4f::Identity();
     Registration(map_cloud_ptr, scan_cloud_ptr, scan_pose, result_pose);
 
-    // 计算相对位姿
+    // 计算相对位姿  Tlast_curr=     Tlidar-last_w1*Tw1_lidar-curr
     current_loop_pose_.pose = map_pose.inverse() * result_pose;
 
     // 判断是否有效
@@ -186,20 +217,22 @@ bool LoopClosing::CloudRegistration(int key_frame_index) {
 }
 
 bool LoopClosing::JointMap(int key_frame_index, CloudData::CLOUD_PTR& map_cloud_ptr, Eigen::Matrix4f& map_pose) {
+    //将距离最近的关键帧拿出来
     map_pose = all_key_gnss_.at(key_frame_index).pose;
     current_loop_pose_.index0 = all_key_frames_.at(key_frame_index).index;
     
-    // 合成地图
+    // 合成地图  这里的w1是gnss的雷达坐标系     w2是lidar以初始点为原点的雷达坐标系
+    //   Tw1_w2=Tw1_lidar*Tlidar_w2;  就是将lidar坐标系于gnss坐标系对齐
     Eigen::Matrix4f pose_to_gnss = map_pose * all_key_frames_.at(key_frame_index).pose.inverse();
-    
+    //该历史帧为中心，按时间往前和往后各索引几个关键帧，拼接成一个小地图
     for (int i = key_frame_index - extend_frame_num_; i < key_frame_index + extend_frame_num_; ++i) {
         std::string file_path = key_frames_path_ + "/key_frame_" + std::to_string(all_key_frames_.at(i).index) + ".pcd";
         
         CloudData::CLOUD_PTR cloud_ptr(new CloudData::CLOUD());
-        pcl::io::loadPCDFile(file_path, *cloud_ptr);
-        
+        pcl::io::loadPCDFile(file_path, *cloud_ptr);  //将关键帧导进来
+        //Tw1_lidar=Tw1_w2*Tw2_lidar   
         Eigen::Matrix4f cloud_pose = pose_to_gnss * all_key_frames_.at(i).pose;
-        pcl::transformPointCloud(*cloud_ptr, *cloud_ptr, cloud_pose);
+        pcl::transformPointCloud(*cloud_ptr, *cloud_ptr, cloud_pose);  //将雷达的点云由雷达坐标系变换到世界坐标系
 
         *map_cloud_ptr += *cloud_ptr;
     }
