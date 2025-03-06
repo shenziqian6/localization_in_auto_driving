@@ -109,7 +109,7 @@ bool Viewer::OptimizeKeyFrames() {
     while (optimized_index < optimized_key_frames_.size() && all_index < all_key_frames_.size()) {
         if (optimized_key_frames_.at(optimized_index).index < all_key_frames_.at(all_index).index) {
             optimized_index ++;
-        } else if (optimized_key_frames_.at(optimized_index).index < all_key_frames_.at(all_index).index) {
+        } else if (optimized_key_frames_.at(optimized_index).index > all_key_frames_.at(all_index).index) {
             all_index ++;
         } else {
             pose_to_optimize_ = optimized_key_frames_.at(optimized_index).pose * all_key_frames_.at(all_index).pose.inverse();

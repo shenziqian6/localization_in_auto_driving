@@ -58,7 +58,6 @@ bool BackEndFlow::ReadData() {
     gnss_pose_sub_ptr_->ParseData(gnss_pose_data_buff_);
     laser_odom_sub_ptr_->ParseData(laser_odom_data_buff_);
     loop_pose_sub_ptr_->ParseData(loop_pose_data_buff_);
-
     return true;
 }
 
