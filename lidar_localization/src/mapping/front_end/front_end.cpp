@@ -98,6 +98,7 @@ bool FrontEnd::Update(const CloudData& cloud_data, Eigen::Matrix4f& cloud_pose) 
 
     // 不是第一帧，就正常匹配
     CloudData::CLOUD_PTR result_cloud_ptr(new CloudData::CLOUD());
+    //目标点云：Tw_cloud    源点云：Tlidar_cloud         current_frame_.pose:Tw_lidar
     registration_ptr_->ScanMatch(filtered_cloud_ptr, predict_pose, result_cloud_ptr, current_frame_.pose);
     cloud_pose = current_frame_.pose;
 
@@ -147,6 +148,7 @@ bool FrontEnd::UpdateWithNewFrame(const Frame& new_key_frame) {
     // 更新ndt匹配的目标点云
     // 关键帧数量还比较少的时候不滤波，因为点云本来就不多，太稀疏影响匹配效果
     if (local_map_frames_.size() < 10) {
+        //Tw_cloud
         registration_ptr_->SetInputTarget(local_map_ptr_);
     } else {
         CloudData::CLOUD_PTR filtered_local_map_ptr(new CloudData::CLOUD());

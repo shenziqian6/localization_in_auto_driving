@@ -226,6 +226,7 @@ bool LoopClosing::JointMap(int key_frame_index, CloudData::CLOUD_PTR& map_cloud_
     
     // 合成地图  这里的w1是gnss的雷达坐标系     w2是lidar以初始点为原点的雷达坐标系
     //   Tw1_w2=Tw1_lidar*Tlidar_w2;  就是将lidar坐标系于gnss坐标系对齐  有误  ==》为什么还要转换？all_key_frames_已经转换到gnss坐标系了， Tw1_w1=Tw1_lidar*Tlidar_w1  没有意义
+    //Todometry_lidar*Tlidar_w=Todometry_w
     Eigen::Matrix4f pose_to_gnss = map_pose * all_key_frames_.at(key_frame_index).pose.inverse();
     //该历史帧为中心，按时间往前和往后各索引几个关键帧，拼接成一个小地图
     for (int i = key_frame_index - extend_frame_num_; i < key_frame_index + extend_frame_num_; ++i) {
@@ -233,9 +234,10 @@ bool LoopClosing::JointMap(int key_frame_index, CloudData::CLOUD_PTR& map_cloud_
         
         CloudData::CLOUD_PTR cloud_ptr(new CloudData::CLOUD());
         pcl::io::loadPCDFile(file_path, *cloud_ptr);  //将关键帧导进来
-        //Tw1_lidar=Tw1_w2*Tw2_lidar   
+        //Tw1_lidar=Tw1_w2*Tw2_lidar      
+        //Todometry_w*Tw_lidar=Todometry_lidar
         Eigen::Matrix4f cloud_pose = pose_to_gnss * all_key_frames_.at(i).pose;
-        pcl::transformPointCloud(*cloud_ptr, *cloud_ptr, cloud_pose);  //将雷达的点云由雷达坐标系变换到世界坐标系
+        pcl::transformPointCloud(*cloud_ptr, *cloud_ptr, cloud_pose);  //将雷达的点云由雷达坐标系变换到odometry坐标系
 
         *map_cloud_ptr += *cloud_ptr;
     }

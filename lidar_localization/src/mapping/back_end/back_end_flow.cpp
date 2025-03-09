@@ -12,14 +12,14 @@
 
 namespace lidar_localization {
 BackEndFlow::BackEndFlow(ros::NodeHandle& nh) {
-    cloud_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, "/synced_cloud", 100000);
-    gnss_pose_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss", 100000);
-    laser_odom_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/laser_odom", 100000);
+    cloud_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, "/synced_cloud", 100000);   //Tw_cloud
+    gnss_pose_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss", 100000);  //Todometry_lidar
+    laser_odom_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/laser_odom", 100000);  //Tw_lidar
     loop_pose_sub_ptr_ = std::make_shared<LoopPoseSubscriber>(nh, "/loop_pose", 100000);
 
     transformed_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/transformed_odom", "/map", "/lidar", 100);
-    key_frame_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_frame", "/map", 100);
-    key_gnss_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_gnss", "/map", 100);
+    key_frame_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_frame", "/map", 100);  //Tw_lidar
+    key_gnss_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_gnss", "/map", 100);   //Todometry_lidar
     key_frames_pub_ptr_ = std::make_shared<KeyFramesPublisher>(nh, "/optimized_key_frames", "/map", 100);
 
     back_end_ptr_ = std::make_shared<BackEnd>();
@@ -116,9 +116,10 @@ bool BackEndFlow::UpdateBackEnd() {
 
     if (!odometry_inited) {
         odometry_inited = true; 
-        //Todometry_lidar*
+        //Todometry_lidar*Tlidar_w=Todometry_w
         odom_init_pose = current_gnss_pose_data_.pose * current_laser_odom_data_.pose.inverse();
     }
+    //Todometry_w*Tw_lidar=Todometry_lodar
     current_laser_odom_data_.pose = odom_init_pose * current_laser_odom_data_.pose;
 
     return back_end_ptr_->Update(current_cloud_data_, current_laser_odom_data_, current_gnss_pose_data_);
