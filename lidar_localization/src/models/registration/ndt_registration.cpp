@@ -53,8 +53,13 @@ bool NDTRegistration::SetInputTarget(const CloudData::CLOUD_PTR& input_target) {
 
     return true;
 }
-//旋转和平移后的点与目标点集中的点在同一坐标系下
-//predict_pose这里是Tw1_lidar    input_source是lidar坐标系的点云   这里是将input_source转换到input_target同一个坐标系，然后进行ndt匹配  因为检测到回环，所以input_source和input_target这两个点云应该相距不远，只需要将这两个点云切换到同一个坐标系
+/*
+    这是在回环检测的匹配情况：
+    //旋转和平移后的点与目标点集中的点在同一坐标系下
+    //predict_pose这里是Tw1_lidar    input_source是lidar坐标系的点云Tlidar_cloud   
+    //这里是将input_source转换到input_target同一个坐标系，然后进行ndt匹配  因为检测到回环，所以input_source和input_target这两个点云应该相距不远，只需要将这两个点云切换到同一个坐标系
+*/
+
 bool NDTRegistration::ScanMatch(const CloudData::CLOUD_PTR& input_source, 
                                 const Eigen::Matrix4f& predict_pose, 
                                 CloudData::CLOUD_PTR& result_cloud_ptr,
@@ -68,6 +73,9 @@ bool NDTRegistration::ScanMatch(const CloudData::CLOUD_PTR& input_source,
     换（如位姿或变换矩阵）。
     */
     ndt_ptr_->align(*result_cloud_ptr, predict_pose);
+    /*
+    具体来说，result_pose是将源点云从其原坐标系变换到目标点云所在的坐标系的位姿矩阵。这意味着result_pose反映了源点云相对于目标点云（或世界坐标系）的最终位姿变换。
+    */
     result_pose = ndt_ptr_->getFinalTransformation();
 
     return true;

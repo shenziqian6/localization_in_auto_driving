@@ -10,7 +10,7 @@
 
 namespace lidar_localization {
 DataPretreatFlow::DataPretreatFlow(ros::NodeHandle& nh) {
-    // subscriber
+    // subscriber   Tlidar_cloud
     cloud_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, "/kitti/velo/pointcloud", 100000);
     imu_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/kitti/oxts/imu", 1000000);
     velocity_sub_ptr_ = std::make_shared<VelocitySubscriber>(nh, "/kitti/oxts/gps/vel", 1000000);
@@ -154,7 +154,9 @@ bool DataPretreatFlow::TransformData() {
     gnss_pose_(0,3) = current_gnss_data_.local_E;
     gnss_pose_(1,3) = current_gnss_data_.local_N;
     gnss_pose_(2,3) = current_gnss_data_.local_U;
+    //Todometry_imu
     gnss_pose_.block<3,3>(0,0) = current_imu_data_.GetOrientationMatrix();
+    //Todometry_lidar=Todometry_imu*Timu_lidar
     gnss_pose_ *= lidar_to_imu_;
 
     current_velocity_data_.TransformCoordinate(lidar_to_imu_);

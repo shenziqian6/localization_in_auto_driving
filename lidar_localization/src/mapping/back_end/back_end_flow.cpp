@@ -115,7 +115,8 @@ bool BackEndFlow::UpdateBackEnd() {
     static Eigen::Matrix4f odom_init_pose = Eigen::Matrix4f::Identity();
 
     if (!odometry_inited) {
-        odometry_inited = true;
+        odometry_inited = true; 
+        //Todometry_lidar*
         odom_init_pose = current_gnss_pose_data_.pose * current_laser_odom_data_.pose.inverse();
     }
     current_laser_odom_data_.pose = odom_init_pose * current_laser_odom_data_.pose;

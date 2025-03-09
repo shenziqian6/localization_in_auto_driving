@@ -180,8 +180,9 @@ bool LoopClosing::DetectNearestKeyFrame(int& key_frame_index) {
 bool LoopClosing::CloudRegistration(int key_frame_index) {
     // 生成地图
     CloudData::CLOUD_PTR map_cloud_ptr(new CloudData::CLOUD());
-    Eigen::Matrix4f map_pose = Eigen::Matrix4f::Identity();
-    //这里获取到检测到回环的那个关键帧map_pose  和关键帧对应的雷达点云map_cloud_ptr
+    Eigen::Matrix4f map_pose = Eigen::Matrix4f::Identity();  
+    //这里获取到检测到回环的那个关键帧map_pose  Tw1_lidar-last 被检测到回环以前的位姿
+    //和关键帧对应的雷达点云map_cloud_ptr
     JointMap(key_frame_index, map_cloud_ptr, map_pose);
 
     // 生成当前scan
@@ -192,9 +193,11 @@ bool LoopClosing::CloudRegistration(int key_frame_index) {
 
     // 匹配
     Eigen::Matrix4f result_pose = Eigen::Matrix4f::Identity();
+    //map_cloud_ptr:Tw1_cloud   scan_cloud_ptr:Tlidar_cloud
+    //scan_pose:Tw1_lidar     最终的结果:result_pose : Tw1_lidar-curr  此时的位姿
     Registration(map_cloud_ptr, scan_cloud_ptr, scan_pose, result_pose);
 
-    // 计算相对位姿  Tlast_curr=     Tlidar-last_w1*Tw1_lidar-curr
+    // 计算相对位姿  Tlast_curr=    Tlidar-last_w1*Tw1_lidar-curr
     current_loop_pose_.pose = map_pose.inverse() * result_pose;
 
     // 判断是否有效
@@ -222,7 +225,7 @@ bool LoopClosing::JointMap(int key_frame_index, CloudData::CLOUD_PTR& map_cloud_
     current_loop_pose_.index0 = all_key_frames_.at(key_frame_index).index;
     
     // 合成地图  这里的w1是gnss的雷达坐标系     w2是lidar以初始点为原点的雷达坐标系
-    //   Tw1_w2=Tw1_lidar*Tlidar_w2;  就是将lidar坐标系于gnss坐标系对齐
+    //   Tw1_w2=Tw1_lidar*Tlidar_w2;  就是将lidar坐标系于gnss坐标系对齐  有误  ==》为什么还要转换？all_key_frames_已经转换到gnss坐标系了， Tw1_w1=Tw1_lidar*Tlidar_w1  没有意义
     Eigen::Matrix4f pose_to_gnss = map_pose * all_key_frames_.at(key_frame_index).pose.inverse();
     //该历史帧为中心，按时间往前和往后各索引几个关键帧，拼接成一个小地图
     for (int i = key_frame_index - extend_frame_num_; i < key_frame_index + extend_frame_num_; ++i) {
