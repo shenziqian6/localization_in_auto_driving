@@ -9,6 +9,7 @@
 #include "lidar_localization/global_defination/global_defination.h"
 
 namespace lidar_localization {
+    //nh.param<std::string>("cloud_topic", cloud_topic, "/synced_cloud");
 DataPretreatFlow::DataPretreatFlow(ros::NodeHandle& nh, std::string cloud_topic) {
     // subscriber
     cloud_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, "/kitti/velo/pointcloud", 100000);
@@ -17,8 +18,8 @@ DataPretreatFlow::DataPretreatFlow(ros::NodeHandle& nh, std::string cloud_topic)
     gnss_sub_ptr_ = std::make_shared<GNSSSubscriber>(nh, "/kitti/oxts/gps/fix", 1000000);
     lidar_to_imu_ptr_ = std::make_shared<TFListener>(nh, "/imu_link", "velo_link");
     // publisher
-    cloud_pub_ptr_ = std::make_shared<CloudPublisher>(nh, cloud_topic, "/velo_link", 100);
-    gnss_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/synced_gnss", "/map", "/velo_link", 100);
+    cloud_pub_ptr_ = std::make_shared<CloudPublisher>(nh, cloud_topic, "/velo_link", 100);      //Tlidar_cloud
+    gnss_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/synced_gnss", "/map", "/velo_link", 100);  //Todometry_lidar
 
     distortion_adjust_ptr_ = std::make_shared<DistortionAdjust>();
 }
@@ -143,7 +144,7 @@ bool DataPretreatFlow::ValidData() {
     imu_data_buff_.pop_front();
     velocity_data_buff_.pop_front();
     gnss_data_buff_.pop_front();
-
+    
     return true;
 }
 
@@ -154,10 +155,11 @@ bool DataPretreatFlow::TransformData() {
     gnss_pose_(0,3) = current_gnss_data_.local_E;
     gnss_pose_(1,3) = current_gnss_data_.local_N;
     gnss_pose_(2,3) = current_gnss_data_.local_U;
-    gnss_pose_.block<3,3>(0,0) = current_imu_data_.GetOrientationMatrix();
-    gnss_pose_ *= lidar_to_imu_;
+    //Todometry_imu
+    gnss_pose_.block<3,3>(0,0) = current_imu_data_.GetOrientationMatrix();     
+    gnss_pose_ *= lidar_to_imu_;  //新的理解：Todometry_imu*Timu_lidar=Todometry_lidar                //错误：Tw_lidar=Tw_imu*Timu_lidar
 
-    current_velocity_data_.TransformCoordinate(lidar_to_imu_);
+    current_velocity_data_.TransformCoordinate(lidar_to_imu_);  //是将imu获取到的角速度与线速度转换到lidar坐标系下的角速度和线速度
     distortion_adjust_ptr_->SetMotionInfo(0.1, current_velocity_data_);
     distortion_adjust_ptr_->AdjustCloud(current_cloud_data_.cloud_ptr, current_cloud_data_.cloud_ptr);
 

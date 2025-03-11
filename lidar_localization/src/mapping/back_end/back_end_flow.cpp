@@ -11,16 +11,20 @@
 #include "lidar_localization/global_defination/global_defination.h"
 
 namespace lidar_localization {
+    /*
+       nh.param<std::string>("cloud_topic", cloud_topic, "/synced_cloud");
+       nh.param<std::string>("odom_topic", odom_topic, "/laser_odom");
+    */
 BackEndFlow::BackEndFlow(ros::NodeHandle& nh, std::string cloud_topic, std::string odom_topic) {
-    cloud_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, cloud_topic, 100000);
-    gnss_pose_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss", 100000);
-    laser_odom_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, odom_topic, 100000);
-    loop_pose_sub_ptr_ = std::make_shared<LoopPoseSubscriber>(nh, "/loop_pose", 100000);
+    cloud_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, cloud_topic, 100000);              //lidar_cloud
+    gnss_pose_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss", 100000);    //Todometry1_lidar-gnss
+    laser_odom_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, odom_topic, 100000);       //Todometry2_lidar
+    loop_pose_sub_ptr_ = std::make_shared<LoopPoseSubscriber>(nh, "/loop_pose", 100000);      //
 
-    transformed_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/transformed_odom", "/map", "/lidar", 100);
-    key_frame_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_frame", "/map", 100);
-    key_gnss_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_gnss", "/map", 100);
-    key_frames_pub_ptr_ = std::make_shared<KeyFramesPublisher>(nh, "/optimized_key_frames", "/map", 100);
+    transformed_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/transformed_odom", "/map", "/lidar", 100);   //Todometry_lidar
+    key_frame_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_frame", "/map", 100);                        //Todometry1_lidar
+    key_gnss_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_gnss", "/map", 100);                          //Todometry1_lidar-gnss
+    key_frames_pub_ptr_ = std::make_shared<KeyFramesPublisher>(nh, "/optimized_key_frames", "/map", 100);           //Todometry1_lidar-optimize
 
     back_end_ptr_ = std::make_shared<BackEnd>();
 }
@@ -117,9 +121,13 @@ bool BackEndFlow::UpdateBackEnd() {
 
     if (!odometry_inited) {
         odometry_inited = true;
+        //Tw1_lidar*Tlidar_w2=Tw1_w2 
+        //新的理解：Todometry1_lidar-gnss*Tlidar_odometry2=Todometry1_odometry2    这里就是将lidar匹配的里程计坐标系转换到gnss坐标系上
         odom_init_pose = current_gnss_pose_data_.pose * current_laser_odom_data_.pose.inverse();
     }
-    current_laser_odom_data_.pose = odom_init_pose * current_laser_odom_data_.pose;
+    //Tw1_lidar=Tw1_w2*Tw2_lidar
+    //新的理解：Todometry1_lidar=Todometry1_odometry2*Todometry2_lidar
+    current_laser_odom_data_.pose = odom_init_pose * current_laser_odom_data_.pose;      
 
     return back_end_ptr_->Update(current_cloud_data_, current_laser_odom_data_, current_gnss_pose_data_);
 }

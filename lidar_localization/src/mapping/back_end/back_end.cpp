@@ -192,7 +192,8 @@ bool BackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
     // 添加激光里程计对应的边
     static KeyFrame last_key_frame = current_key_frame_;
     int node_num = graph_optimizer_ptr_->GetNodeNum();
-    if (node_num > 1) {
+    if (node_num > 1) {           
+        //Tlast_odometry1*Todometry1_curr=Tlast_curr;
         Eigen::Matrix4f relative_pose = last_key_frame.pose.inverse() * current_key_frame_.pose;
         isometry.matrix() = relative_pose.cast<double>();
         graph_optimizer_ptr_->AddSe3Edge(node_num-2, node_num-1, isometry, graph_optimizer_config_.odom_edge_noise);

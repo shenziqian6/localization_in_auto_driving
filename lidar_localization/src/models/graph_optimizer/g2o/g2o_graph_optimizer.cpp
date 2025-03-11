@@ -121,6 +121,7 @@ void G2oGraphOptimizer::AddRobustKernel(g2o::OptimizableGraph::Edge *edge, const
 }
 
 Eigen::MatrixXd G2oGraphOptimizer::CalculateDiagMatrix(Eigen::VectorXd noise) {
+    //Eigen::VectorXd 默认是列向量 
     Eigen::MatrixXd information_matrix = Eigen::MatrixXd::Identity(noise.rows(), noise.rows());
     for (int i = 0; i < noise.rows(); i++) {
         information_matrix(i, i) /= noise(i);

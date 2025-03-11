@@ -19,11 +19,23 @@ class EdgeSE3PriorQuat : public g2o::BaseUnaryEdge<3, Eigen::Quaterniond, g2o::V
 
 	void computeError() override {
 		const g2o::VertexSE3* v1 = static_cast<const g2o::VertexSE3*>(_vertices[0]);
-
+		/*
+		1、调用v1->estimate()获取该顶点的估计刚体变换（SE3）。
+		2、SE3由旋转部分（linear()）和平移部分（translation()）组成。
+		通过调用.linear()，我们获取了旋转部分，它是一个3x3的旋转矩阵。
+		3、Eigen::Quaterniond构造函数将旋转矩阵自动转换为四元数形式。
+		这样，旋转信息就可以以四元数的形式方便地用于后续的计算或存储。
+		
+		*/
 		Eigen::Quaterniond estimate = Eigen::Quaterniond(v1->estimate().linear());
 		if(estimate.w() < 0) {
 			estimate.coeffs() = -estimate.coeffs();
 		}
+		/*
+		误差计算：在 computeError() 中，使用 estimate.vec() 
+		和 measurement.vec() 计算误差，这两个方法返回的是虚部
+		的向量，即 x, y, z 分量，导致 _error 为三维。
+		*/
 		_error = estimate.vec() - _measurement.vec();
 	}
 

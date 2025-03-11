@@ -35,7 +35,16 @@ bool LoopClosing::InitWithConfig() {
 
     return true;
 }
+/*
+# 匹配时为了精度更高，应该选用scan-to-map的方式
+# map是以历史帧为中心，往前后时刻各选取extend_frame_num个关键帧，放在一起拼接成的
+extend_frame_num: 5 
+loop_step: 5 # 防止检测过于频繁，每隔loop_step个关键帧检测一次闭环
+detect_area: 10.0 # 检测区域，只有两帧距离小于这个值，才做闭环匹配
+diff_num: 100 # 过于小的闭环没有意义，所以只有两帧之间的关键帧个数超出这个值再做检测
+fitness_score_limit: 0.2 # 匹配误差小于这个值才认为是有效的
 
+*/
 bool LoopClosing::InitParam(const YAML::Node& config_node) {
     extend_frame_num_ = config_node["extend_frame_num"].as<int>();
     loop_step_ = config_node["loop_step"].as<int>();
@@ -109,7 +118,7 @@ bool LoopClosing::DetectNearestKeyFrame(int& key_frame_index) {
     static int skip_num = loop_step_;
     if (++skip_cnt < skip_num)
         return false;
-
+    //diff_num: 100 # 过于小的闭环没有意义，所以只有两帧之间的关键帧个数超出这个值再做检测
     if ((int)all_key_gnss_.size() < diff_num_ + 1)
         return false;
 
@@ -134,11 +143,16 @@ bool LoopClosing::DetectNearestKeyFrame(int& key_frame_index) {
             key_frame_index = i;
         }
     }
+    //# 匹配时为了精度更高，应该选用scan-to-map的方式
+    //# map是以历史帧为中心，往前后时刻各选取extend_frame_num个关键帧，放在一起拼接成的
     if (key_frame_index < extend_frame_num_)
         return false;
 
     skip_cnt = 0;
     skip_num = (int)min_distance;
+    //detect_area: 10.0 # 检测区域，只有两帧距离小于这个值，才做闭环匹配
+    //假如最小距离是100m,那么即使往回环点的方向在前进，也需要走90m才可以，所以这90m
+    //内就不检测回环了。
     if (min_distance > detect_area_) {
         skip_num = std::max((int)(min_distance / 2.0), loop_step_);
         return false;
@@ -152,18 +166,22 @@ bool LoopClosing::CloudRegistration(int key_frame_index) {
     // 生成地图
     CloudData::CLOUD_PTR map_cloud_ptr(new CloudData::CLOUD());
     Eigen::Matrix4f map_pose = Eigen::Matrix4f::Identity();
+    //map_cloud_ptr:Tlidar_cloud-last
+    //map_pose:   Todometry1_lidar-gnss-last
     JointMap(key_frame_index, map_cloud_ptr, map_pose);
 
     // 生成当前scan
     CloudData::CLOUD_PTR scan_cloud_ptr(new CloudData::CLOUD());
     Eigen::Matrix4f scan_pose = Eigen::Matrix4f::Identity();
+    //scan_cloud_ptr:Tlidar_cloud-curr    scan_pose:Todometry1_lidar-gnss-curr
     JointScan(scan_cloud_ptr, scan_pose);
 
     // 匹配
     Eigen::Matrix4f result_pose = Eigen::Matrix4f::Identity();
+    //result_pose:Todometry1_lidar-curr
     Registration(map_cloud_ptr, scan_cloud_ptr, scan_pose, result_pose);
 
-    // 计算相对位姿
+    // 计算相对位姿      Tlidar-gnss-last_odometry1*Todometry1_lidar-curr=Tlast-curr
     current_loop_pose_.pose = map_pose.inverse() * result_pose;
 
     // 判断是否有效
@@ -189,7 +207,8 @@ bool LoopClosing::JointMap(int key_frame_index, CloudData::CLOUD_PTR& map_cloud_
     map_pose = all_key_gnss_.at(key_frame_index).pose;
     current_loop_pose_.index0 = all_key_frames_.at(key_frame_index).index;
     
-    // 合成地图
+    // 合成地图                   Tw1_lidar*Tlidar_w2=Tw1_w2
+    //新的理解：    Todometry1_lidar-gnss*Tlidar_odometry1=Todometry1_odometry1
     Eigen::Matrix4f pose_to_gnss = map_pose * all_key_frames_.at(key_frame_index).pose.inverse();
     
     for (int i = key_frame_index - extend_frame_num_; i < key_frame_index + extend_frame_num_; ++i) {

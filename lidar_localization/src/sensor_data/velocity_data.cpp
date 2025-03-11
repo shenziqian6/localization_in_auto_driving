@@ -54,13 +54,17 @@ bool VelocityData::SyncData(std::deque<VelocityData>& UnsyncedData, std::deque<V
 void VelocityData::TransformCoordinate(Eigen::Matrix4f transform_matrix) {
     Eigen::Matrix4d matrix = transform_matrix.cast<double>();
     Eigen::Matrix3d t_R = matrix.block<3,3>(0,0);
-    Eigen::Vector3d w(angular_velocity.x, angular_velocity.y, angular_velocity.z);
-    Eigen::Vector3d v(linear_velocity.x, linear_velocity.y, linear_velocity.z);
+    Eigen::Vector3d w(angular_velocity.x, angular_velocity.y, angular_velocity.z);   //imu的角速度
+    Eigen::Vector3d v(linear_velocity.x, linear_velocity.y, linear_velocity.z);   //imu的线速度
+    //将imu的角速度和线速度转换到lidar坐标系
     w = t_R * w;
     v = t_R * v;
 
     Eigen::Vector3d r(matrix(0,3), matrix(1,3), matrix(2,3));
     Eigen::Vector3d delta_v;
+    //根据平移向量r和角速度w，计算由于IMU位置相对于Lidar位置的偏移带来的额外线速度delta_v。
+    //delta_v的计算公式基于向量叉乘，用于计算由于角速度和位置偏移引起的附加线速度。
+    //具体来说，delta_v等于角速度向量w和平移向量r的叉乘，即delta_v = w × r
     delta_v(0) = w(1) * r(2) - w(2) * r(1);
     delta_v(1) = w(2) * r(0) - w(0) * r(2);
     delta_v(2) = w(1) * r(1) - w(1) * r(0);
